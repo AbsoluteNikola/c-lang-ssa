@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "c-lang-ssa"
+version = "0.1.0"
+description = ""
+authors = ["Nikolay Rulev <nikolayr2001@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "c-lang-ssa"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pycparser = "*"
+graphviz = "*"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
