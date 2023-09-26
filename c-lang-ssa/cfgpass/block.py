@@ -5,7 +5,7 @@ from pycparser.c_generator import CGenerator
 
 
 class Block:
-    def __init__(self, label: str):
+    def __init__(self, label: str = ""):
         self._next_blocks = []
         self._statements = []
         self._parents_blocks = []
@@ -30,21 +30,19 @@ class Block:
         self._parents_blocks.append(block)
 
     def add_statements(self, statements: list[Node]):
-        print(statements)
         self._statements += statements
-        pass
 
     @property
     def statements(self) -> list[Node]:
         return self._statements
 
     def merge(self, block: 'Block'):
-        if len(block.parents_blocks) > 1:
-            raise (Exception(f"Can't merge blocks. next {block} has more than one parent"))
-        elif len(block.parents_blocks) == 1 and block.parents_blocks[0] is not self:
-            raise (Exception(f"Can't merge blocks. next {block} has another parent"))
-        elif len(self._next_blocks) > 1:
-            raise (Exception(f"Can't merge blocks. current {block} has more than one next block"))
+        # if len(block.parents_blocks) > 1:
+        #     raise (Exception(f"Can't merge blocks. next {block} has more than one parent"))
+        # elif len(block.parents_blocks) == 1 and block.parents_blocks[0] is not self:
+        #     raise (Exception(f"Can't merge blocks. next {block} has another parent"))
+        # elif len(self._next_blocks) > 1:
+        #     raise (Exception(f"Can't merge blocks. current {block} has more than one next block"))
 
         self._statements += block._statements
         self._next_blocks = block._next_blocks
@@ -53,5 +51,10 @@ class Block:
         output = ""
         cg = CGenerator()
         for s in self._statements:
-            output += f"{cg.visit(s)}\l"
+            output += f"{cg.visit(s)}\\l"
         return output
+
+    def __str__(self):
+        return self.render_statements().replace("\\l", "\n")
+
+    def __repr__(self): return self.__str__()

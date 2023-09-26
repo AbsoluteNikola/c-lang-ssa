@@ -4,6 +4,7 @@ from pycparser.c_ast import *
 from .block import Block
 import graphviz
 
+
 # noinspection PyMethodMayBeStatic
 class CfgPass:
 
@@ -35,10 +36,11 @@ class CfgPass:
             print(f"Unknown node: {type(node)}")
 
     def _traverse_func_def(self, node: FuncDef) -> Block:
-        func_start_block = Block()
+        func_start_block = Block(f"function {node.decl.name} start")
         func_start_block.add_statements(node.decl.type.args.params)
-        func_body_block = self._traverse_compound(node.body)
-        func_start_block.merge(func_body_block)
+        (func_body_block_start, func_body_block_finish) = \
+            self._traverse_compound(node.body, f"function {node.decl.name} body start")
+        func_start_block.merge(func_body_block_start)
         return func_start_block
 
     def _traverse_func_decl(self, node: FuncDecl):
@@ -50,33 +52,33 @@ class CfgPass:
     def _traverse_decl(self, node: Decl):
         print(type(node))
 
-    def _traverse_compound(self, node: Compound) -> Block:
-        first_block = Block()
+    def _traverse_compound(self, node: Compound, label: str) -> Tuple[Block, Block]:
+        first_block = Block(label)
         current_block = first_block
         for n in node.block_items:
             if isinstance(n, If):
                 current_block.add_statements([n.cond])
 
-                left_block, right_block = self._traverse_if(n)
-                current_block.add_next_block(left_block)
-                current_block.add_next_block(right_block)
-                left_block.add_parent(left_block)
-                right_block.add_parent(right_block)
+                (left_block_start, left_block_end), (right_block_start, right_block_end) = self._traverse_if(n)
+                current_block.add_next_block(left_block_start)
+                current_block.add_next_block(right_block_start)
+                left_block_start.add_parent(current_block)
+                right_block_start.add_parent(current_block)
 
                 new_block = Block()
-                new_block.add_parent(left_block)
-                new_block.add_parent(right_block)
-                left_block.add_next_block(new_block)
-                right_block.add_next_block(new_block)
+                new_block.add_parent(left_block_end)
+                new_block.add_parent(right_block_end)
+                left_block_end.add_next_block(new_block)
+                right_block_end.add_next_block(new_block)
                 current_block = new_block
             else:
                 current_block.add_statements([n])
-        return first_block
+        return first_block, current_block
 
-    def _traverse_if(self, node: If) -> Tuple[Block, Block]:
-        left_block = self._traverse_compound(node.iftrue)
-        right_block = self._traverse_compound(node.iffalse)
-        return left_block, right_block
+    def _traverse_if(self, node: If) -> Tuple[Tuple[Block, Block], Tuple[Block, Block]]:
+        left_blocks = self._traverse_compound(node.iftrue, "if true")
+        right_blocks = self._traverse_compound(node.iffalse, "if false")
+        return left_blocks, right_blocks
 
     def _traverse_binary_op(self, node: BinaryOp):
         print(type(node))
@@ -88,12 +90,14 @@ class CfgPass:
         print(type(node))
 
     def show(self):
-        dot = graphviz.Digraph("CFG", format='png')
+        dot = graphviz.Digraph("CFG", format='png', renderer='cairo', strict=True)
         self._generate_dot(dot, self.start_blocks[0])
-        dot.view()
+        dot.view(quiet_view=True)
 
     def _generate_dot(self, dot, block):
-        dot.node(str(id(block)), shape="record", label=block.render_statements())
+        body = block.render_statements()
+        label = body if block.label == "" else f"{block.label}\\l\\l{body}"
+        dot.node(str(id(block)), shape="record", label=label)
         for next_block in block.next_blocks:
             self._generate_dot(dot, next_block)
             dot.edge(str(id(block)), str(id(next_block)))
