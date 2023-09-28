@@ -15,6 +15,7 @@ def main():
     args = argparser.parse_args()
 
     ast: FileAST = parse_file(args.filename, use_cpp=False)
+    ast.show()
     cfg = CfgPass(ast)
     cfg.show()
 

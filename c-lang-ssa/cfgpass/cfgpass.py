@@ -25,69 +25,78 @@ class CfgPass:
     def _traverse_file_ast(self, node: FileAST) -> list[Block]:
         all_blocks = []
         for n in node.ext:
-            all_blocks.append(self._traverse(n))
+            all_blocks.append(self._traverse(n)[0])
         return all_blocks
 
-    def _traverse(self, node: Node) -> Block:
+    def _traverse(self, node: Node) -> Tuple[Block, Block]:
         for (f, node_type) in self._traverses:
             if isinstance(node, node_type):
                 return f(node)
         else:
-            print(f"Unknown node: {type(node)}")
+            print(f"Unknown node: {type(node)} at {node.coord}")
 
-    def _traverse_func_def(self, node: FuncDef) -> Block:
+    @staticmethod
+    def _link_blocks(parent: Block, child: Block):
+        parent.add_next_block(child)
+        child.add_parent(parent)
+
+    def _traverse_func_def(self, node: FuncDef) -> Tuple[Block, Block]:
         func_start_block = Block(f"function {node.decl.name} start")
         func_start_block.add_statements(node.decl.type.args.params)
         (func_body_block_start, func_body_block_finish) = \
-            self._traverse_compound(node.body, f"function {node.decl.name} body start")
-        func_start_block.merge(func_body_block_start)
-        return func_start_block
+            self._traverse_compound(node.body)
+        self._link_blocks(parent=func_start_block, child=func_body_block_start)
+        return func_start_block, func_body_block_finish
 
-    def _traverse_func_decl(self, node: FuncDecl):
-        print(type(node))
+    def _default_traverse(self, node: Node) -> Tuple[Block, Block]:
+        print(f"use default traverse for {type(node)}")
+        block = Block()
+        block.add_statements([node])
+        return block, block
 
-    def _traverse_param_list(self, node: ParamList):
-        print(type(node))
+    def _traverse_func_decl(self, node: FuncDecl) -> Tuple[Block, Block]:
+        return self._default_traverse(node)
 
-    def _traverse_decl(self, node: Decl):
-        print(type(node))
+    def _traverse_param_list(self, node: ParamList) -> Tuple[Block, Block]:
+        return self._default_traverse(node)
 
-    def _traverse_compound(self, node: Compound, label: str) -> Tuple[Block, Block]:
-        first_block = Block(label)
-        current_block = first_block
+    def _traverse_decl(self, node: Decl) -> Tuple[Block, Block]:
+        return self._default_traverse(node)
+
+    def _traverse_compound(self, node: Compound) -> Tuple[Block, Block]:
+        first_compound_block = Block()
+        current_block = first_compound_block
         for n in node.block_items:
-            if isinstance(n, If):
-                current_block.add_statements([n.cond])
+            first, last = self._traverse(n)
+            self._link_blocks(parent=current_block, child=first)
+            current_block = last
+        return first_compound_block, current_block
 
-                (left_block_start, left_block_end), (right_block_start, right_block_end) = self._traverse_if(n)
-                current_block.add_next_block(left_block_start)
-                current_block.add_next_block(right_block_start)
-                left_block_start.add_parent(current_block)
-                right_block_start.add_parent(current_block)
+    def _traverse_if(self, node: If) -> Tuple[Block, Block]:
+        cond_block = Block()
+        cond_block.add_statements([node.cond])
+        left_first_block, left_last_block = self._traverse(node.iftrue)
+        if node.iffalse is not None:
+            right_first_block, right_last_block = self._traverse(node.iffalse)
+        else:
+            b = Block()
+            right_first_block, right_last_block = (b, b)
+        join_block = Block()
 
-                new_block = Block()
-                new_block.add_parent(left_block_end)
-                new_block.add_parent(right_block_end)
-                left_block_end.add_next_block(new_block)
-                right_block_end.add_next_block(new_block)
-                current_block = new_block
-            else:
-                current_block.add_statements([n])
-        return first_block, current_block
+        self._link_blocks(parent=cond_block, child=left_first_block)
+        self._link_blocks(parent=cond_block, child=right_first_block)
+        self._link_blocks(parent=left_last_block, child=join_block)
+        self._link_blocks(parent=right_last_block, child=join_block)
+        return cond_block, join_block
 
-    def _traverse_if(self, node: If) -> Tuple[Tuple[Block, Block], Tuple[Block, Block]]:
-        left_blocks = self._traverse_compound(node.iftrue, "if true")
-        right_blocks = self._traverse_compound(node.iffalse, "if false")
-        return left_blocks, right_blocks
+    def _traverse_binary_op(self, node: BinaryOp) -> Tuple[Block, Block]:
+        return self._default_traverse(node)
 
-    def _traverse_binary_op(self, node: BinaryOp):
-        print(type(node))
+    def _traverse_assigment(self, node: Assignment) -> Tuple[Block, Block]:
+        return self._default_traverse(node)
 
-    def _traverse_assigment(self, node: Assignment):
-        print(type(node))
-
-    def _traverse_return(self, node: Return):
-        print(type(node))
+    def _traverse_return(self, node: Return) -> Tuple[Block, Block]:
+        return self._default_traverse(node)
 
     def show(self):
         dot = graphviz.Digraph("CFG", format='png', renderer='cairo', strict=True)

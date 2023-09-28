@@ -36,6 +36,10 @@ class Block:
     def statements(self) -> list[Node]:
         return self._statements
 
+    @property
+    def is_empty(self):
+        return len(self._statements) == 0
+
     def merge(self, block: 'Block'):
         # if len(block.parents_blocks) > 1:
         #     raise (Exception(f"Can't merge blocks. next {block} has more than one parent"))

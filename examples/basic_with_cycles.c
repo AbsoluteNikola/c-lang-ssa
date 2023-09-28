@@ -1,11 +1,16 @@
-int main(int argc, char** argv) {
-  int x = 0, y = 2;
-  int z;
-  if (x == y) {
-    z = 1;
-  } else {
-    z = 2;
+int main() {
+  int x = 2;
+  while(x < 5) {
+    x += x;
   }
-  z = x + 1;
-  return 0;
+  return x;
+//  return (x == 2) ? (x + 6) : (x - 3) ;
+}
+
+
+int foo(int x) {
+  while(x < 10) {
+    x++;
+  }
+  return x;
 }
