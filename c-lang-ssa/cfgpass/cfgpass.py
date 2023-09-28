@@ -19,6 +19,8 @@ class CfgPass:
             (self._traverse_binary_op, BinaryOp),
             (self._traverse_assigment, Assignment),
             (self._traverse_return, Return),
+            (self._traverse_while, While),
+            (self._traverse_for, For),
         ]
         self.start_blocks = self._traverse_file_ast(ast)
 
@@ -42,7 +44,8 @@ class CfgPass:
 
     def _traverse_func_def(self, node: FuncDef) -> Tuple[Block, Block]:
         func_start_block = Block(f"function {node.decl.name} start")
-        func_start_block.add_statements(node.decl.type.args.params)
+        args = node.decl.type.args
+        func_start_block.add_statements([] if args is None else args.params)
         (func_body_block_start, func_body_block_finish) = \
             self._traverse_compound(node.body)
         self._link_blocks(parent=func_start_block, child=func_body_block_start)
@@ -89,6 +92,37 @@ class CfgPass:
         self._link_blocks(parent=right_last_block, child=join_block)
         return cond_block, join_block
 
+    def _traverse_while(self, node: While) -> Tuple[Block, Block]:
+        cond_block = Block()
+        after_block = Block()
+        cond_block.add_statements([node.cond])
+        first_statement, last_statement = self._traverse(node.stmt)
+        self._link_blocks(parent=cond_block, child=first_statement)
+        self._link_blocks(parent=last_statement, child=cond_block)
+        self._link_blocks(parent=cond_block, child=after_block)
+        return cond_block, after_block
+
+    def _traverse_for(self, node: For) -> Tuple[Block, Block]:
+        init_block = Block()
+        init_block.add_statements(node.init.decls)
+
+        cond_block = Block()
+        cond_block.add_statements([node.cond])
+
+        next_block = Block()
+        next_block.add_statements([node.next])
+
+        after_block = Block()
+
+        first_statement, last_statement = self._traverse(node.stmt)
+        self._link_blocks(parent=init_block, child=cond_block)
+        self._link_blocks(parent=cond_block, child=first_statement)
+        self._link_blocks(parent=last_statement, child=next_block)
+        self._link_blocks(parent=next_block, child=cond_block)
+        self._link_blocks(parent=cond_block, child=after_block)
+
+        return init_block, after_block
+
     def _traverse_binary_op(self, node: BinaryOp) -> Tuple[Block, Block]:
         return self._default_traverse(node)
 
@@ -103,10 +137,14 @@ class CfgPass:
         self._generate_dot(dot, self.start_blocks[0])
         dot.view(quiet_view=True)
 
-    def _generate_dot(self, dot, block):
+    def _generate_dot(self, dot, block, was=None):
+        if was is None:
+            was = set()
+        was.add(id(block))
         body = block.render_statements()
         label = body if block.label == "" else f"{block.label}\\l\\l{body}"
         dot.node(str(id(block)), shape="record", label=label)
         for next_block in block.next_blocks:
-            self._generate_dot(dot, next_block)
+            if id(next_block) not in was:
+                self._generate_dot(dot, next_block, was)
             dot.edge(str(id(block)), str(id(next_block)))
