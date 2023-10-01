@@ -162,7 +162,7 @@ class CfgPass:
         was.add(id(block))
         params = block.dot_params
         dot.node(str(id(block)), shape=params.shape, label=params.label, fillcolor=params.color, style='filled')
-        for next_block in block.next_blocks:
+        for (next_block, color) in block.next_blocks_with_edge_color:
             if id(next_block) not in was:
                 self._generate_dot(dot, next_block, was)
-            dot.edge(str(id(block)), str(id(next_block)))
+            dot.edge(str(id(block)), str(id(next_block)), color=color)

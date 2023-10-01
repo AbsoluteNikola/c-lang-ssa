@@ -47,6 +47,10 @@ class Block(ABC):
         return self._next_blocks
 
     @property
+    def next_blocks_with_edge_color(self) -> list[tuple['Block', str]]:
+        return [(b, "black") for b in self._next_blocks]
+
+    @property
     @abc.abstractmethod
     def dot_params(self) -> DotParams:
         pass
@@ -166,6 +170,10 @@ class ConditionBlock(Block):
     def _render_statements(self) -> str:
         cg = CGenerator()
         return f"{cg.visit(self._statements[0])}".replace("<", "\\<").replace(">", "\\>")
+
+    @property
+    def next_blocks_with_edge_color(self) -> list[tuple['Block', str]]:
+        return [(self._next_blocks[0], "#2b782a"), (self._next_blocks[1], "red")]
 
     @property
     def _can_be_merged(self) -> bool:
