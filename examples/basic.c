@@ -8,13 +8,6 @@ int main(int argc, char** argv) {
       z = 2;
     }
   } else {
-    if(x == 3) {
-      z = 3;
-    } else {
-      z = 4;
-    } if (x == 4)  {
-      z = 5;
-    }
   }
   z = x + 1;
   return 0;

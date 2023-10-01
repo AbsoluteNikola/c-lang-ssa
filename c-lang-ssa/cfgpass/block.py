@@ -63,12 +63,33 @@ class Block(ABC):
     def merge_blocks_recursive(self):
         self._merge_blocks_recursive(set())
 
+    # empty block is block without statements and always base block
+    # it can have more than one parent, but only one next block
+    def _eliminate_empty(self):
+        next_block = self._next_blocks[0]
+        next_block._parents.remove(self)
+        for p in self._parents:
+            # next_block.set_color(self._color)
+            p._next_blocks.remove(self)
+            p._next_blocks.append(next_block)
+            next_block._parents.append(p)
+
     def _merge_blocks_recursive(self, was):
         was.add(id(self))
+
+        # merge chains of base block line b1 -> b2 -> b3
         i = 0
         while self._can_be_merged and i < len(self.next_blocks):
             if self.next_blocks[i]._can_be_merged:
                 self._merge_with(self.next_blocks[i])
+                i = 0
+            else:
+                i += 1
+
+        i = 0
+        while i < len(self.next_blocks):
+            if self.next_blocks[i].is_empty:
+                self.next_blocks[i]._eliminate_empty()
                 i = 0
             else:
                 i += 1

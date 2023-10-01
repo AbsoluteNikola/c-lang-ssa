@@ -7,7 +7,7 @@ from cfgpass.cfgpass import *
 def main():
     argparser = argparse.ArgumentParser('Dump AST')
     argparser.add_argument('filename',
-                           default='examples/basic_with_cycles.c',
+                           default='examples/basic.c',
                            nargs='?',
                            help='name of file to parse')
     argparser.add_argument('--coord', help='show coordinates in the dump',

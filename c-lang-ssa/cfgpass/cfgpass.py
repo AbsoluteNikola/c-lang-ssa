@@ -5,7 +5,7 @@ from .block import *
 import graphviz
 
 
-# TODO: break in for and while, switch case, labels goto
+# TODO: break in for and while, switch case, labels goto, returns
 # noinspection PyMethodMayBeStatic
 class CfgPass:
 
@@ -71,7 +71,8 @@ class CfgPass:
     def _traverse_compound(self, node: Compound) -> Tuple[BaseBlock, BaseBlock]:
         first_compound_block = BaseBlock()
         current_block = first_compound_block
-        for n in node.block_items:
+
+        for n in (node.block_items or []):
             first, last = self._traverse(n)
             self._link_blocks(parent=current_block, child=first)
             current_block = last
