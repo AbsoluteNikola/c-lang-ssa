@@ -20,7 +20,7 @@ def _rename_decl(old_var_name: str, new_var_name: str, n: Decl):
 
 
 def _rename_assignment(old_var_name: str, new_var_name: str, n: Assignment):
-    rename_in_node(old_var_name, new_var_name, n.lvalue)
+    # rename_in_node(old_var_name, new_var_name, n.lvalue)
     rename_in_node(old_var_name, new_var_name, n.rvalue)
 
 

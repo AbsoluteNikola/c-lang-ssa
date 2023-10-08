@@ -56,7 +56,6 @@ class Block(ABC):
     def next_blocks_with_edge_color(self) -> list[tuple['Block', str]]:
         return [(b, "black") for b in self._next_blocks]
 
-    @property
     @abc.abstractmethod
     def dot_params(self) -> DotParams:
         pass
@@ -155,10 +154,24 @@ class Block(ABC):
 
         for s in self._statements:
             for v, index in list(vd.items()):
-                rename_in_node(v, f"{v}_{index}", s)
-                # if isinstance(s, Assignment):
+                rename_in_node(v, f"{v}_{index - 1}", s)
+
+            if isinstance(s, Assignment) and isinstance(s.lvalue, ID):
+                name = s.lvalue.name
+                s.lvalue.name = f"{name}_{vd[name]}"
+                vd = vd.set(name, vd[name] + 1)
+            elif isinstance(s, Decl):
+                name = s.name
+                s.name = f"{name}_{vd[name]}"
+                s.type.declname = f"{name}_{vd[name]}"
+                vd = vd.set(name, vd[name] + 1)
 
         for next_block in self.next_blocks:
+            if len(next_block._parents) > 1:
+                for v, index in vd.items():
+                    for phi in next_block._phis.keys():
+                        if phi.startswith(v):
+                            next_block._phis[phi].append(f"{v}_{index - 1}")
             if id(next_block) not in was:
                 next_block._rename(vd, was)
 
@@ -180,7 +193,7 @@ class Block(ABC):
 
     def _generate_dot(self, dot, was):
         was.add(id(self))
-        params = self.dot_params
+        params = self.dot_params()
         dot.node(str(id(self)), shape=params.shape, label=params.label, fillcolor=params.color, style='filled')
         for (next_block, color) in self.next_blocks_with_edge_color:
             if id(next_block) not in was:
@@ -208,7 +221,6 @@ class BaseBlock(Block):
     def add_next_block(self, block: 'Block'):
         self._next_blocks.append(block)
 
-    @property
     def dot_params(self) -> DotParams:
         label = self._render_statements()
         return DotParams(label=label, color=self._color, shape='record')
@@ -240,7 +252,6 @@ class ConditionBlock(Block):
         block.set_color("#ff9999")
         self._next_blocks[1] = block
 
-    @property
     def dot_params(self) -> DotParams:
         label = self._render_statements()
         return DotParams(label=label, color='white', shape='record')

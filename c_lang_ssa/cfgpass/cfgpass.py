@@ -177,7 +177,7 @@ class CfgPass:
     def _traverse_assigment(self, node: Assignment, context: 'CFGContext') -> Tuple[Block, Block]:
         return self._default_traverse(node, context)
 
-    def _traverse_return(self, node: Return, context: 'CFGContext') -> Tuple[Block, Block]:
+    def _traverse_return(self, node: Return, _context: 'CFGContext') -> Tuple[Block, Block]:
         block = BaseBlock(is_final=True)
         block.add_statements([node])
         return block, block

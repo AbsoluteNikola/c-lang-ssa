@@ -1,4 +1,4 @@
-int main(int argc, char **argv) {
+int main() {
 
   int x = 0, y = 2;
   int z = x + y;
@@ -40,6 +40,6 @@ int main(int argc, char **argv) {
       break;
     }
   }
-  int y;
+  y = y + 4;
   return x;
 }

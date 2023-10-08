@@ -17,9 +17,9 @@ def main():
     ast: FileAST = parse_file(args.filename, use_cpp=False)
     # ast.show()
     cfg = CfgPass(ast)
-    cfg.show()
-    # ssa = SSAPass(cfg.start_blocks[0])
-    # ssa.show()
+    # cfg.show()
+    ssa = SSAPass(cfg.start_blocks[0])
+    ssa.show()
 
 if __name__ == '__main__':
     main()
