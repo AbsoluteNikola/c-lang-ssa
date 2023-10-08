@@ -143,42 +143,50 @@ class Block(ABC):
                 next_block._init_phi_functions(variables, was)
 
     def rename(self, variables):
-        vd = frozendict.frozendict()
+        # vd = frozendict.frozendict()
+        vd = {}
         for v in variables:
-            vd = vd.set(v, 0)
-        self._rename(vd, was=set())
+            vd[v] = 0
+        self._rename(vd, frozendict.frozendict(), was=set())
 
-    def _rename(self, vd, was):
+    def _rename(self, var_available_names, env, was):
         was.add(id(self))
 
         for phi in list(self._phis.keys()):
-            new_name = f"{phi}_{vd[phi]}"
-            vd = vd.set(phi, vd[phi] + 1)
+            new_name = f"{phi}_{var_available_names[phi]}"
+            var_available_names[phi] = var_available_names[phi] + 1
+            env = env.set(phi, new_name)
             self._phis[new_name] = self._phis[phi]
             del self._phis[phi]
 
         for s in self._statements:
-            for v, index in list(vd.items()):
-                rename_in_node(v, f"{v}_{index - 1}", s)
+            for v, v_index in list(env.items()):
+                rename_in_node(v, v_index, s)
 
             if isinstance(s, Assignment) and isinstance(s.lvalue, ID):
                 name = s.lvalue.name
-                s.lvalue.name = f"{name}_{vd[name]}"
-                vd = vd.set(name, vd[name] + 1)
+                new_name = f"{name}_{var_available_names[name]}"
+                s.lvalue.name = new_name
+                var_available_names[name] = var_available_names[name] + 1
+                env = env.set(name, new_name)
+                # vd = vd.set(name, vd[name] + 1)
             elif isinstance(s, Decl):
                 name = s.name
-                s.name = f"{name}_{vd[name]}"
-                s.type.declname = f"{name}_{vd[name]}"
-                vd = vd.set(name, vd[name] + 1)
+                new_name = f"{name}_{var_available_names[name]}"
+                s.name = new_name
+                s.type.declname = f"{name}_{var_available_names[name]}"
+                var_available_names[name] = var_available_names[name] + 1
+                env = env.set(name, new_name)
+                # vd = vd.set(name, vd[name] + 1)
 
         for next_block in self.next_blocks:
             if len(next_block._parents) > 1:
-                for v, index in vd.items():
+                for v, v_index in env.items():
                     for phi in next_block._phis.keys():
                         if phi.startswith(v):
-                            next_block._phis[phi].append(f"{v}_{index - 1}")
+                            next_block._phis[phi].append(v_index)
             if id(next_block) not in was:
-                next_block._rename(vd, was)
+                next_block._rename(var_available_names, env, was)
 
     @staticmethod
     def _render_phi(name, args):
