@@ -1,10 +1,13 @@
 import abc
+import copy
 from abc import *
 from dataclasses import dataclass
 from typing import Optional
 
-from pycparser.c_ast import Node
+import frozendict as frozendict
+from pycparser.c_ast import *
 from pycparser.c_generator import CGenerator
+from c_lang_ssa.ast_utils import rename_in_node
 
 
 @dataclass
@@ -15,11 +18,14 @@ class DotParams:
 
 
 class Block(ABC):
-    def __init__(self):
+    def __init__(self, is_final: bool = False):
         self._statements = []
         self._parents = []
         self._next_blocks = []
         self._color = "white"
+        self._phis = {}
+        self._decls = []
+        self.is_final = is_final
 
     def add_parent(self, block: 'Block'):
         self._parents.append(block)
@@ -102,12 +108,84 @@ class Block(ABC):
             if id(next_block) not in was:
                 next_block._merge_blocks_recursive(was)
 
+    def fill_decls(self) -> set[str]:
+        return self._fill_decls(set())
+
+    def _fill_decls(self, was) -> set[str]:
+        was.add(id(self))
+
+        for s in self._statements:
+            if isinstance(s, Decl):
+                self._decls.append(s.name)
+
+        decls = (set(self._decls))
+
+        for next_block in self.next_blocks:
+            if id(next_block) not in was:
+                decls = decls | next_block._fill_decls(was)
+        return decls
+
+    def init_phi_functions(self, variables: set[str]):
+        self._init_phi_functions(variables, set())
+
+    def _init_phi_functions(self, variables: set[str], was):
+        was.add(id(self))
+        if len(self.parents_blocks) > 1:
+            for v in variables:
+                self._phis[v] = []
+
+        for next_block in self.next_blocks:
+            if id(next_block) not in was:
+                next_block._init_phi_functions(variables, was)
+
+    def rename(self, variables):
+        vd = frozendict.frozendict()
+        for v in variables:
+            vd = vd.set(v, 0)
+        self._rename(vd, was=set())
+
+    def _rename(self, vd, was):
+        was.add(id(self))
+
+        for phi in list(self._phis.keys()):
+            new_name = f"{phi}_{vd[phi]}"
+            vd = vd.set(phi, vd[phi] + 1)
+            self._phis[new_name] = self._phis[phi]
+            del self._phis[phi]
+
+        for s in self._statements:
+            for v, index in list(vd.items()):
+                rename_in_node(v, f"{v}_{index}", s)
+                # if isinstance(s, Assignment):
+
+        for next_block in self.next_blocks:
+            if id(next_block) not in was:
+                next_block._rename(vd, was)
+
+    @staticmethod
+    def _render_phi(name, args):
+        return f"{name} = phi({', '.join(args)})"
+
     def _render_statements(self) -> str:
         output = ""
+        if len(self._phis) > 0:
+            output = "\\l".join([self._render_phi(p, args)for (p, args) in self._phis.items()]) + "\\l"
         cg = CGenerator()
         for s in self._statements:
             output += f"{cg.visit(s)}\\l".replace("<", "\\<").replace(">", "\\>")
         return output
+
+    def generate_dot(self, dot):
+        self._generate_dot(dot, was=set())
+
+    def _generate_dot(self, dot, was):
+        was.add(id(self))
+        params = self.dot_params
+        dot.node(str(id(self)), shape=params.shape, label=params.label, fillcolor=params.color, style='filled')
+        for (next_block, color) in self.next_blocks_with_edge_color:
+            if id(next_block) not in was:
+                next_block._generate_dot(dot, was)
+            dot.edge(str(id(self)), str(id(next_block)), color=color)
 
     def __str__(self):
         rendered_statements = self._render_statements().replace('\\l', ';')
@@ -118,8 +196,8 @@ class Block(ABC):
 
 class BaseBlock(Block):
 
-    def __init__(self, label: str = ""):
-        super().__init__()
+    def __init__(self, is_final: bool = False, label: str = ""):
+        super().__init__(is_final=is_final)
         self._statements = []
         self._label = label
 
@@ -148,7 +226,7 @@ class BaseBlock(Block):
 class ConditionBlock(Block):
 
     def __init__(self):
-        super().__init__()
+        super().__init__(is_final=False)
         self._next_blocks: list[Optional[Block]] = [None, None]
 
     def add_condition(self, cond: Node):
@@ -165,11 +243,11 @@ class ConditionBlock(Block):
     @property
     def dot_params(self) -> DotParams:
         label = self._render_statements()
-        return DotParams(label=label, color='white', shape='diamond')
+        return DotParams(label=label, color='white', shape='record')
 
-    def _render_statements(self) -> str:
-        cg = CGenerator()
-        return f"{cg.visit(self._statements[0])}".replace("<", "\\<").replace(">", "\\>")
+    # def _render_statements(self) -> str:
+    #     cg = CGenerator()
+    #     return f"{cg.visit(self._statements[0])}".replace("<", "\\<").replace(">", "\\>")
 
     @property
     def next_blocks_with_edge_color(self) -> list[tuple['Block', str]]:

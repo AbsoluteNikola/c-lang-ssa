@@ -2,7 +2,7 @@ import argparse
 from pycparser import parse_file
 from pycparser.c_ast import *
 from cfgpass.cfgpass import *
-
+from ssapass.ssapass import *
 
 def main():
     argparser = argparse.ArgumentParser('Dump AST')
@@ -15,10 +15,11 @@ def main():
     args = argparser.parse_args()
 
     ast: FileAST = parse_file(args.filename, use_cpp=False)
-    ast.show()
+    # ast.show()
     cfg = CfgPass(ast)
     cfg.show()
-
+    # ssa = SSAPass(cfg.start_blocks[0])
+    # ssa.show()
 
 if __name__ == '__main__':
     main()

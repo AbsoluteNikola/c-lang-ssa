@@ -5,12 +5,13 @@ description = ""
 authors = ["Nikolay Rulev <nikolayr2001@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-packages = [{include = "c-lang-ssa"}]
+packages = [{include = "c_lang_ssa"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
 pycparser = "*"
 graphviz = "*"
+frozendict = "^2.3.8"
 
 
 [build-system]
