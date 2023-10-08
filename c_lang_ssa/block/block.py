@@ -124,16 +124,21 @@ class Block(ABC):
                 decls = decls | next_block._fill_decls(was)
         return decls
 
-    def init_phi_functions(self, variables: set[str]):
-        self._init_phi_functions(variables, set())
+    def init_phi_functions(self, variables: frozenset[str]):
+        self._init_phi_functions(frozenset(), set())
 
-    def _init_phi_functions(self, variables: set[str], was):
+    def _init_phi_functions(self, variables: frozenset[str], was):
         was.add(id(self))
-        if len(self.parents_blocks) > 1:
-            for v in variables:
-                self._phis[v] = []
+
+        for s in self._statements:
+            if isinstance(s, Decl):
+                variables = variables.union(frozenset([s.name]))
 
         for next_block in self.next_blocks:
+            if len(next_block.parents_blocks) > 1:
+                for v in variables:
+                    next_block._phis[v] = []
+
             if id(next_block) not in was:
                 next_block._init_phi_functions(variables, was)
 
